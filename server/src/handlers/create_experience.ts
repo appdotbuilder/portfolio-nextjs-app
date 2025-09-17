@@ -1,18 +1,37 @@
+import { db } from '../db';
+import { experienceTable } from '../db/schema';
 import { type CreateExperienceInput, type Experience } from '../schema';
+import { randomUUID } from 'crypto';
 
-export async function createExperience(input: CreateExperienceInput): Promise<Experience> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new work experience record and persisting it in the database.
-    // Used for adding job positions, internships, and work history to the portfolio timeline.
-    return Promise.resolve({
-        id: 'temp-exp-id',
+export const createExperience = async (input: CreateExperienceInput): Promise<Experience> => {
+  try {
+    // Generate unique ID for the experience record
+    const id = randomUUID();
+
+    // Insert experience record
+    const result = await db.insert(experienceTable)
+      .values({
+        id,
         company: input.company,
         position: input.position,
         location: input.location,
         start_date: input.start_date,
         end_date: input.end_date,
-        description: input.description,
+        description: input.description, // JSON array stored directly
         current: input.current,
         company_logo: input.company_logo
-    } as Experience);
-}
+      })
+      .returning()
+      .execute();
+
+    // Return the created experience record
+    const experience = result[0];
+    return {
+      ...experience,
+      description: experience.description as string[] // Ensure proper type casting for JSON field
+    };
+  } catch (error) {
+    console.error('Experience creation failed:', error);
+    throw error;
+  }
+};

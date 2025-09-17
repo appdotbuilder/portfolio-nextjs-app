@@ -1,14 +1,49 @@
+import { db } from '../db';
+import { newsletterSubscriptionsTable } from '../db/schema';
 import { type CreateNewsletterSubscriptionInput, type NewsletterSubscription } from '../schema';
+import { eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 export async function createNewsletterSubscription(input: CreateNewsletterSubscriptionInput): Promise<NewsletterSubscription> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new newsletter subscription and persisting it in the database.
-    // Used for handling newsletter signup from the footer or other subscription forms.
-    // Should handle duplicate email addresses gracefully.
-    return Promise.resolve({
-        id: 'temp-subscription-id',
+  try {
+    // Check if email already exists
+    const existingSubscription = await db.select()
+      .from(newsletterSubscriptionsTable)
+      .where(eq(newsletterSubscriptionsTable.email, input.email))
+      .execute();
+
+    // If email exists and is subscribed, return the existing record
+    if (existingSubscription.length > 0) {
+      const existing = existingSubscription[0];
+      
+      // If already subscribed, return the existing subscription
+      if (existing.subscribed) {
+        return existing;
+      }
+      
+      // If previously unsubscribed, reactivate the subscription
+      const reactivated = await db.update(newsletterSubscriptionsTable)
+        .set({ subscribed: true })
+        .where(eq(newsletterSubscriptionsTable.id, existing.id))
+        .returning()
+        .execute();
+
+      return reactivated[0];
+    }
+
+    // Create new subscription
+    const result = await db.insert(newsletterSubscriptionsTable)
+      .values({
+        id: randomUUID(),
         email: input.email,
-        subscribed: true,
-        created_at: new Date()
-    } as NewsletterSubscription);
+        subscribed: true
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Newsletter subscription creation failed:', error);
+    throw error;
+  }
 }

@@ -1,11 +1,14 @@
+import { db } from '../db';
+import { certificatesTable } from '../db/schema';
 import { type CreateCertificateInput, type Certificate } from '../schema';
+import { randomUUID } from 'crypto';
 
-export async function createCertificate(input: CreateCertificateInput): Promise<Certificate> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new certificate record and persisting it in the database.
-    // Used for adding professional certificates and achievements to the portfolio.
-    return Promise.resolve({
-        id: 'temp-cert-id',
+export const createCertificate = async (input: CreateCertificateInput): Promise<Certificate> => {
+  try {
+    // Insert certificate record
+    const result = await db.insert(certificatesTable)
+      .values({
+        id: randomUUID(),
         title: input.title,
         issuer: input.issuer,
         issue_date: input.issue_date,
@@ -13,5 +16,13 @@ export async function createCertificate(input: CreateCertificateInput): Promise<
         verify_url: input.verify_url,
         image: input.image,
         category: input.category
-    } as Certificate);
-}
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Certificate creation failed:', error);
+    throw error;
+  }
+};
